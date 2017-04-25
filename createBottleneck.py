@@ -58,6 +58,7 @@ def create_bottleneck_file(sess, img_path, bottleneck_path, img_tensor, bottlene
 
 
 def create_bottleneck_folder(img_dir, bottleneck_dir, inception_graph_path):
+    print('__Bat dau kiem tra/tao bottleneck')
     sess = tf.Session()
     graph, bottleneck_tensor, img_tensor, _ = import_inception(
         inception_graph_path)
@@ -89,3 +90,4 @@ def create_bottleneck_folder(img_dir, bottleneck_dir, inception_graph_path):
                 print('Da tao %i: %s' % (i, bottleneck_path))
             else:
                 print('___Tim thay: %s' % bottleneck_path)
+    print('__Hoan tat kiem tra/tao %i bottleneck__' % i)

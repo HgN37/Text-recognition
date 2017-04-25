@@ -18,7 +18,7 @@ BOTTLENECK_TENSOR_SIZE = 2048
 
 
 class textClassfier():
-    def __init__(self, bottleneck_folder, train_per=80, val_per=10):
+    def __init__(self, bottleneck_folder, train_per=0.8, val_per=0.1):
         self.sess = tf.Session()
         self.dataset = self.data_init(bottleneck_folder, train_per, val_per)
         class_count = len(self.dataset.keys())
@@ -31,10 +31,8 @@ class textClassfier():
         b = tf.Variable(tf.zeros([class_count]), name='bias')
         self.logits = tf.matmul(self.Input_ts, W) + b
         self.Output_ts = tf.nn.softmax(self.logits, name='final_result')
-        correct_prediction = tf.equal(
-            tf.argmax(self.logits, 1), tf.argmax(self.Truth_ts, 1))
-        self.accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-        self.sess.run(tf.global_variables_initializer())
+        self.accuracy = tf.reduce_mean(tf.cast(
+            tf.equal(tf.argmax(self.logits, 1), tf.argmax(self.Truth_ts, 1)), tf.float32))
 
     def data_init(self, bottleneck_dir, train_per, val_per):
         dataset = {}
@@ -71,12 +69,6 @@ class textClassfier():
             }
         return dataset
 
-    def bottleneck_read(bottleneck_path):
-        with open(bottleneck_path, 'r') as bottleneck_file:
-            bottleneck_string = bottleneck_file.read()
-        bottleneck_values = [float(x) for x in bottleneck_string.split(',')]
-        return bottleneck_values
-
     def get_random_data(self, how_many, category):
         class_count = len(self.dataset.keys())
         bottlenecks = []
@@ -90,7 +82,7 @@ class textClassfier():
                 bottleneck_name = self.dataset[label_name][category][bottleneck_index]
                 bottleneck_path = os.path.join(
                     self.dataset[label_name]['dir'], bottleneck_name)
-                bottleneck_value = self.bottleneck_read(bottleneck_path)
+                bottleneck_value = bottleneck_read(bottleneck_path)
                 truth = np.zeros(class_count, dtype=np.float32)
                 truth[label_index] = 1.0
                 bottlenecks.append(bottleneck_value)
@@ -103,6 +95,7 @@ class textClassfier():
         cross_entropy_mean = tf.reduce_mean(cross_entropy)
         self.training_step = tf.train.GradientDescentOptimizer(
             rate).minimize(cross_entropy_mean)
+        self.sess.run(tf.global_variables_initializer())
         for i in range(step):
             X_batch, y_batch = self.get_random_data(50, 'training')
             self.sess.run(self.training_step, feed_dict={
@@ -111,7 +104,9 @@ class textClassfier():
                 X_batch, y_batch = self.get_random_data(50, 'validation')
                 acc = self.sess.run(self.accuracy, feed_dict={
                     self.Input_ts: X_batch, self.Truth_ts: y_batch})
-                print('Step %i: ' % i, acc)
+                print('Step %i: ' % i, acc * 100, '%')
+                print('-------------')
+        print('__Hoan tat training__')
 
     def save_graph(self):
         output_graph_def = graph_util.convert_variables_to_constants(
@@ -122,3 +117,10 @@ class textClassfier():
         with gfile.FastGFile('./my_label.txt', 'w') as f:
             f.write('\n'.join(self.dataset.keys()) + '\n')
         print('Export label thanh cong')
+
+
+def bottleneck_read(bottleneck_path):
+    with open(bottleneck_path, 'r') as bottleneck_file:
+        bottleneck_string = bottleneck_file.read()
+    bottleneck_values = [float(x) for x in bottleneck_string.split(',')]
+    return bottleneck_values
