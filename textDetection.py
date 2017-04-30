@@ -12,6 +12,7 @@ from skimage.segmentation import clear_border
 from tensorflow.python.platform import gfile
 from createBottleneck import import_inception, create_img_bottleneck
 
+from PIL import Image
 
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
@@ -71,7 +72,7 @@ class textDetection:
                 if sample.shape[0] * sample.shape[1] == 0:
                     continue
                 else:
-                    sample = resize(sample, (50, 50))
+                    # sample = resize(sample, (50, int(sample.shape[1] * (50 / sample.shape[0]))))
                     candidateValue.append(sample)
                     candidatePosition.append(region.bbox)
 
@@ -97,7 +98,8 @@ class textDetection:
                 if sample.shape[0] * sample.shape[1] == 0:
                     continue
                 else:
-                    sample = resize(sample, (50, 50))
+                    # sample = resize(sample, (50, int(sample.shape[1] * (50 / sample.shape[0]))))
+                    sample = 1 - sample
                     candidateValue.append(sample)
                     candidatePosition.append(region.bbox)
 
@@ -162,6 +164,14 @@ class textDetection:
             # os.path.join(sample_folder, str(n) + '.jpg')
             scipy.misc.imsave(os.path.join('./sample', str(
                 n) + '.jpg'), self.candidate['fullscale'][n])
+        for n in range(self.candidate['fullscale'].shape[0]):
+            imgSmall = Image.open(os.path.join('./sample', str(n) + '.jpg'))
+            sizeImgSmall = imgSmall.size
+            sizeImgBig = (100, 100)
+            imgBig = Image.new('RGB', sizeImgBig, (255, 255, 255))
+            imgBig.paste(imgSmall, (int((sizeImgBig[0] - sizeImgSmall[0]) / 2),
+                                    int((sizeImgBig[1] - sizeImgSmall[1]) / 2)))
+            imgBig.save(os.path.join('./sample', str(n) + '.jpg'))
 
     def letterClassify(self):
         self.sampleSave()

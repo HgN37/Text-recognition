@@ -33,6 +33,7 @@ class textClassfier():
         self.Output_ts = tf.nn.softmax(self.logits, name='final_result')
         self.accuracy = tf.reduce_mean(tf.cast(
             tf.equal(tf.argmax(self.logits, 1), tf.argmax(self.Truth_ts, 1)), tf.float32))
+        self.sess.run(tf.global_variables_initializer())
 
     def data_init(self, bottleneck_dir, train_per, val_per):
         dataset = {}
@@ -89,24 +90,29 @@ class textClassfier():
                 truths.append(truth)
         return bottlenecks, truths
 
-    def start_training(self, step, rate=0.03):
+    def start_training(self, step, sample_per_step=50, rate=0.03):
         cross_entropy = tf.nn.softmax_cross_entropy_with_logits(
             logits=self.logits, labels=self.Truth_ts)
         cross_entropy_mean = tf.reduce_mean(cross_entropy)
         self.training_step = tf.train.GradientDescentOptimizer(
             rate).minimize(cross_entropy_mean)
-        self.sess.run(tf.global_variables_initializer())
         for i in range(step):
-            X_batch, y_batch = self.get_random_data(50, 'training')
+            X_batch, y_batch = self.get_random_data(sample_per_step, 'training')
             self.sess.run(self.training_step, feed_dict={
                           self.Input_ts: X_batch, self.Truth_ts: y_batch})
             if i % 100 == 0:
-                X_batch, y_batch = self.get_random_data(50, 'validation')
+                X_batch, y_batch = self.get_random_data(100, 'validation')
                 acc = self.sess.run(self.accuracy, feed_dict={
                     self.Input_ts: X_batch, self.Truth_ts: y_batch})
-                print('Step %i: ' % i, acc * 100, '%')
+                print('Step %i: ' % i, acc)
                 print('-------------')
         print('__Hoan tat training__')
+
+    def testAccuracy(self):
+        X_batch, y_batch = self.get_random_data(200, 'testing')
+        acc = self.sess.run(self.accuracy, feed_dict={
+            self.Input_ts: X_batch, self.Truth_ts: y_batch})
+        print('Do chinh xac: ', acc)
 
     def save_graph(self):
         output_graph_def = graph_util.convert_variables_to_constants(
