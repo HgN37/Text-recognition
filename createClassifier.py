@@ -109,7 +109,7 @@ class textClassfier():
         print('__Hoan tat training__')
 
     def testAccuracy(self):
-        X_batch, y_batch = self.get_random_data(200, 'testing')
+        X_batch, y_batch = self.get_random_data(500, 'testing')
         acc = self.sess.run(self.accuracy, feed_dict={
             self.Input_ts: X_batch, self.Truth_ts: y_batch})
         print('Do chinh xac: ', acc)

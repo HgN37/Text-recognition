@@ -72,7 +72,8 @@ class textDetection:
                 if sample.shape[0] * sample.shape[1] == 0:
                     continue
                 else:
-                    # sample = resize(sample, (50, int(sample.shape[1] * (50 / sample.shape[0]))))
+                    # sample = resize(sample, (80, int(sample.shape[1] * (80 / sample.shape[0]))))
+                    sample = resize(sample, (80, 80))
                     candidateValue.append(sample)
                     candidatePosition.append(region.bbox)
 
@@ -98,8 +99,8 @@ class textDetection:
                 if sample.shape[0] * sample.shape[1] == 0:
                     continue
                 else:
-                    # sample = resize(sample, (50, int(sample.shape[1] * (50 / sample.shape[0]))))
-                    sample = 1 - sample
+                    # sample = resize(sample, (80, int(sample.shape[1] * (80 / sample.shape[0]))))
+                    sample = resize(sample, (80, 80))
                     candidateValue.append(sample)
                     candidatePosition.append(region.bbox)
 
@@ -164,14 +165,16 @@ class textDetection:
             # os.path.join(sample_folder, str(n) + '.jpg')
             scipy.misc.imsave(os.path.join('./sample', str(
                 n) + '.jpg'), self.candidate['fullscale'][n])
+        
         for n in range(self.candidate['fullscale'].shape[0]):
             imgSmall = Image.open(os.path.join('./sample', str(n) + '.jpg'))
             sizeImgSmall = imgSmall.size
-            sizeImgBig = (100, 100)
+            sizeImgBig = (128, 128)
             imgBig = Image.new('RGB', sizeImgBig, (255, 255, 255))
             imgBig.paste(imgSmall, (int((sizeImgBig[0] - sizeImgSmall[0]) / 2),
                                     int((sizeImgBig[1] - sizeImgSmall[1]) / 2)))
             imgBig.save(os.path.join('./sample', str(n) + '.jpg'))
+        
 
     def letterClassify(self):
         self.sampleSave()
