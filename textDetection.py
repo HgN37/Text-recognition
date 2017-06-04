@@ -15,7 +15,6 @@ from createBottleneck import import_inception, create_img_bottleneck
 from PIL import Image
 
 import matplotlib.pyplot as plt
-import matplotlib.cm as cm
 import matplotlib.patches as patches
 
 import shutil
@@ -34,6 +33,7 @@ RATIO = 3
 
 class textDetection:
     def __init__(self, image_path):
+        print('Image reading...')
         self.image = imread(image_path, as_grey=True)
         self.bw = self.imagePreProcess()
         if os.path.exists('./sample'):
@@ -48,10 +48,11 @@ class textDetection:
         bw = closing(image > thres, square(2))
         clear_border(bw)
         print('Done')
-        print('___')
+        print('-----')
         return bw
 
     def getTextCandidate(self):
+        print('Getting text candidates from image...')
         label_black = label(self.bw, background=1)
         label_white = label(self.bw, background=0)
         candidateResult = []
@@ -72,7 +73,7 @@ class textDetection:
                 continue
             if (minr == 0):
                 continue
-            if region.area > 10:
+            if (region.area > (0.002 * (self.image.shape[0] * self.image.shape[1]))):
                 margin = 0
                 minr = minr - margin
                 minc = minc - margin
@@ -103,7 +104,7 @@ class textDetection:
                 continue
             if (minr == 0):
                 continue
-            if region.area > 10:
+            if (region.area > (0.002 * (self.image.shape[0] * self.image.shape[1]))):
                 margin = 0
                 minr = minr - margin
                 minc = minc - margin
@@ -134,8 +135,8 @@ class textDetection:
                 minc2 = candidatePosition[j][1]
                 maxr2 = candidatePosition[j][2]
                 maxc2 = candidatePosition[j][3]
-                if(minc1 > minc2):
-                    if(minr1 > minr2):
+                if(minc1 >= minc2):
+                    if(minr1 >= minr2):
                         if(maxc1 < maxc2):
                             if(maxr1 < maxr2):
                                 need_to_del = True
@@ -153,7 +154,8 @@ class textDetection:
         self.candidate = {'position': np.array(candidatePosition),
                           'result': candidateResult}
         num = self.candidate['position'].shape[0]
-        print('Trich xuat duoc: ', num, ' mau')
+        print(num, 'candidates found!!!')
+        print('-----')
 
     def showCandidate(self):
         if self.candidate['position'].shape[0] == 0:
@@ -212,13 +214,11 @@ class textDetection:
                                    {'Input_ts:0': [sample_bottleneck[n]]})
             top_k = predictions[0].argsort()[-len(predictions[0]):][::-1]
             human_string = label_lines[top_k[0]]
-            score = predictions[0][top_k[0]]
-            print('%s (score = %.5f)' % (human_string, score))
-            print('----------------------------------------------')
+            # score = predictions[0][top_k[0]]
+            # print('%s (score = %.5f)' % (human_string, score))
+            # print('----------------------------------------------')
             samplePredict.append(human_string)
         self.candidate['result'] = samplePredict
-        print(self.candidate['position'])
-        print(self.candidate['result'])
         return self.candidate['result']
 
     def textReconstruct(self):
@@ -233,4 +233,5 @@ class textDetection:
             self.candidate['position'][i][2], self.candidate['position'][Ymin][2] = self.candidate['position'][Ymin][2], self.candidate['position'][i][2]
             self.candidate['position'][i][3], self.candidate['position'][Ymin][3] = self.candidate['position'][Ymin][3], self.candidate['position'][i][3]
             self.candidate['result'][i], self.candidate['result'][Ymin] = self.candidate['result'][Ymin], self.candidate['result'][i]
-        print(self.candidate['result'])
+        print('Result:')
+        print(*self.candidate['result'], sep='')
