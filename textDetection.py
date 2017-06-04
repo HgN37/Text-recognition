@@ -36,19 +36,27 @@ class textDetection:
     def __init__(self, image_path):
         self.image = imread(image_path, as_grey=True)
         self.bw = self.imagePreProcess()
+        if os.path.exists('./sample'):
+            shutil.rmtree('./sample')
+        if not os.path.exists('./sample'):
+            os.makedirs('./sample')
 
     def imagePreProcess(self):
+        print('Image Preprocessing...')
         image = denoise_tv_chambolle(self.image, weight=0.1)
         thres = threshold_otsu(image)
         bw = closing(image > thres, square(2))
         clear_border(bw)
+        print('Done')
+        print('___')
         return bw
 
     def getTextCandidate(self):
         label_black = label(self.bw, background=1)
         label_white = label(self.bw, background=0)
-        candidateValue = []
+        candidateResult = []
         candidatePosition = []
+        n = 0
 
         for region in regionprops(label_black):
             minr, minc, maxr, maxc = region.bbox
@@ -62,8 +70,10 @@ class textDetection:
                 continue
             if (maxc - minc) / (maxr - minr) > RATIO:
                 continue
+            if (minr == 0):
+                continue
             if region.area > 10:
-                margin = 3
+                margin = 0
                 minr = minr - margin
                 minc = minc - margin
                 maxr = maxr + margin
@@ -72,10 +82,12 @@ class textDetection:
                 if sample.shape[0] * sample.shape[1] == 0:
                     continue
                 else:
-                    # sample = resize(sample, (80, int(sample.shape[1] * (80 / sample.shape[0]))))
-                    sample = resize(sample, (80, 80))
-                    candidateValue.append(sample)
+                    sample = resize(sample, (100, int(sample.shape[1] * (100 / sample.shape[0]))))
+                    self.sampleSave(sample, str(n))
+                    # self.sampleSave(sample, str(n))
+                    candidateResult.append('no_text')
                     candidatePosition.append(region.bbox)
+                    n = n + 1
 
         for region in regionprops(label_white):
             minr, minc, maxr, maxc = region.bbox
@@ -89,8 +101,10 @@ class textDetection:
                 continue
             if (maxc - minc) / (maxr - minr) > RATIO:
                 continue
+            if (minr == 0):
+                continue
             if region.area > 10:
-                margin = 3
+                margin = 0
                 minr = minr - margin
                 minc = minc - margin
                 maxr = maxr + margin
@@ -99,20 +113,23 @@ class textDetection:
                 if sample.shape[0] * sample.shape[1] == 0:
                     continue
                 else:
-                    # sample = resize(sample, (80, int(sample.shape[1] * (80 / sample.shape[0]))))
-                    sample = resize(sample, (80, 80))
-                    candidateValue.append(sample)
+                    sample = resize(sample, (100, int(sample.shape[1] * (100 / sample.shape[0]))))
+                    sample = 1 - sample
+                    self.sampleSave(sample, str(n))
+                    # self.sampleSave(sample, str(n))
+                    candidateResult.append('no_text')
                     candidatePosition.append(region.bbox)
+                    n = n + 1
 
-        num = np.array(candidatePosition).shape[0]
+        self.numMax = np.array(candidatePosition).shape[0]
         need_to_del = False
         delete = []
-        for i in range(num):
+        for i in range(self.numMax):
             minr1 = candidatePosition[i][0]
             minc1 = candidatePosition[i][1]
             maxr1 = candidatePosition[i][2]
             maxc1 = candidatePosition[i][3]
-            for j in range(num):
+            for j in range(self.numMax):
                 minr2 = candidatePosition[j][0]
                 minc2 = candidatePosition[j][1]
                 maxr2 = candidatePosition[j][2]
@@ -126,11 +143,15 @@ class textDetection:
                 delete.append(i)
             need_to_del = False
         for i in range(np.array(delete).shape[0]):
-            del candidateValue[delete[i] - i]
-            del candidatePosition[delete[i] - i]
-        self.candidate = {'fullscale': np.array(candidateValue),
-                          'position': np.array(candidatePosition)
-                          }
+            index = delete[i] - i
+            del candidateResult[index]
+            del candidatePosition[index]
+            os.remove(os.path.join('./sample', str(delete[i]) + '.jpg'))
+        # self.candidate = {'fullscale': np.array(candidateValue),
+        #                   'position': np.array(candidatePosition)
+        #                   }
+        self.candidate = {'position': np.array(candidatePosition),
+                          'result': candidateResult}
         num = self.candidate['position'].shape[0]
         print('Trich xuat duoc: ', num, ' mau')
 
@@ -152,44 +173,28 @@ class textDetection:
         ax.set_axis_off()
         plt.show()
 
-    def sampleSave(self):
-        if self.candidate['position'].shape[0] == 0:
-            print('Chua co candidate')
-            print('Su dung ham getTextCandidate()')
-            return
-        if os.path.exists('./sample'):
-            shutil.rmtree('./sample')
-        if not os.path.exists('./sample'):
-            os.makedirs('./sample')
-        for n in range(self.candidate['fullscale'].shape[0]):
-            # os.path.join(sample_folder, str(n) + '.jpg')
-            scipy.misc.imsave(os.path.join('./sample', str(
-                n) + '.jpg'), self.candidate['fullscale'][n])
-        
-        for n in range(self.candidate['fullscale'].shape[0]):
-            imgSmall = Image.open(os.path.join('./sample', str(n) + '.jpg'))
-            sizeImgSmall = imgSmall.size
-            sizeImgBig = (128, 128)
-            imgBig = Image.new('RGB', sizeImgBig, (255, 255, 255))
-            imgBig.paste(imgSmall, (int((sizeImgBig[0] - sizeImgSmall[0]) / 2),
-                                    int((sizeImgBig[1] - sizeImgSmall[1]) / 2)))
-            imgBig.save(os.path.join('./sample', str(n) + '.jpg'))
-        
+    def sampleSave(self, sample, name):
+        scipy.misc.imsave(os.path.join('./sample', name + '.jpg'), sample)
+        imgSmall = Image.open(os.path.join('./sample', name + '.jpg'))
+        sizeImgSmall = imgSmall.size
+        sizeImgBig = (128, 128)
+        imgBig = Image.new('RGB', sizeImgBig, (255, 255, 255))
+        imgBig.paste(imgSmall, (int((sizeImgBig[0] - sizeImgSmall[0]) / 2),
+                                int((sizeImgBig[1] - sizeImgSmall[1]) / 2)))
+        imgBig.save(os.path.join('./sample', name + '.jpg'))
 
     def letterClassify(self):
-        self.sampleSave()
         sess = tf.Session()
         graph, bottleneck_tensor, img_tensor, resized_img_tensor = import_inception(
             './classify_image_graph_def.pb')
         sample_bottleneck = []
-        n = 0
-        while os.path.exists(os.path.join('./sample', str(n) + '.jpg')):
-            img_data = gfile.FastGFile(os.path.join(
-                './sample', str(n) + '.jpg'), 'rb').read()
-            bottleneck = create_img_bottleneck(
-                sess, img_data, img_tensor, bottleneck_tensor)
-            sample_bottleneck.append(bottleneck)
-            n = n + 1
+        for n in range(self.numMax):
+            if os.path.exists(os.path.join('./sample', str(n) + '.jpg')):
+                img_data = gfile.FastGFile(os.path.join(
+                    './sample', str(n) + '.jpg'), 'rb').read()
+                bottleneck = create_img_bottleneck(
+                    sess, img_data, img_tensor, bottleneck_tensor)
+                sample_bottleneck.append(bottleneck)
         label_lines = [line.rstrip() for line
                        in tf.gfile.GFile(LABEL_FILE)]
 
@@ -208,8 +213,24 @@ class textDetection:
             top_k = predictions[0].argsort()[-len(predictions[0]):][::-1]
             human_string = label_lines[top_k[0]]
             score = predictions[0][top_k[0]]
-            # print('%s (score = %.5f)' % (human_string, score))
-            # print('----------------------------------------------')
+            print('%s (score = %.5f)' % (human_string, score))
+            print('----------------------------------------------')
             samplePredict.append(human_string)
-        self.candidateResult = samplePredict
-        return self.candidateResult
+        self.candidate['result'] = samplePredict
+        print(self.candidate['position'])
+        print(self.candidate['result'])
+        return self.candidate['result']
+
+    def textReconstruct(self):
+        for i in range(self.candidate['position'].shape[0]):
+            Ymin = i
+            for j in range(self.candidate['position'].shape[0] - i):
+                Ytemp = i + j
+                if (self.candidate['position'][Ytemp][1] < self.candidate['position'][Ymin][1]):
+                    Ymin = Ytemp
+            self.candidate['position'][i][0], self.candidate['position'][Ymin][0] = self.candidate['position'][Ymin][0], self.candidate['position'][i][0]
+            self.candidate['position'][i][1], self.candidate['position'][Ymin][1] = self.candidate['position'][Ymin][1], self.candidate['position'][i][1]
+            self.candidate['position'][i][2], self.candidate['position'][Ymin][2] = self.candidate['position'][Ymin][2], self.candidate['position'][i][2]
+            self.candidate['position'][i][3], self.candidate['position'][Ymin][3] = self.candidate['position'][Ymin][3], self.candidate['position'][i][3]
+            self.candidate['result'][i], self.candidate['result'][Ymin] = self.candidate['result'][Ymin], self.candidate['result'][i]
+        print(self.candidate['result'])
